@@ -25,7 +25,7 @@ export default defineConfig({
       // Forward BrAPI calls to the Spring Boot API server in development so
       // the browser never hits a cross-origin request.
       '/brapi': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
     },

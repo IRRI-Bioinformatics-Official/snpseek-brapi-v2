@@ -31,7 +31,7 @@ services:
     env_file:
       - .env
     environment:
-      # Override the in-container port (application.yml default is 8080).
+      # Use port 8081 as the standard for both local and containerised deployments.
       SERVER_PORT: "8081"
 
       # Remote PostgreSQL — DB_HOST is the hostname or IP of your Postgres
