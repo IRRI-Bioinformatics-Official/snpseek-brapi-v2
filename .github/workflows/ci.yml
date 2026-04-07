@@ -12,7 +12,7 @@ jobs:
   # ---------------------------------------------------------------------------
   api-server:
     name: API Server
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +32,7 @@ jobs:
   # ---------------------------------------------------------------------------
   web-portal:
     name: Web Portal
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +56,7 @@ jobs:
   # ---------------------------------------------------------------------------
   docker-validation:
     name: Docker Validation
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
