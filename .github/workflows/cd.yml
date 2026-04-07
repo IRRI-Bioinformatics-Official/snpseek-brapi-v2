@@ -53,23 +53,20 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-web-portal:${{ github.sha }}
 
   # ---------------------------------------------------------------------------
-  # Deploy to Remote Server
+  # Deploy to Local Server (Self-Hosted Runner)
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to Server
     needs: build-and-push
     runs-on: self-hosted
     steps:
-      - name: SSH Deploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_SSH_HOST }}
-          username: ${{ secrets.DEPLOY_SSH_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd projects/snpseek-brapi-v2/infrastructure/docker
-            # Export the lowercase owner so docker-compose picks it up
-            export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-            docker compose pull
-            docker compose up -d
-            docker image prune -af
+      - uses: actions/checkout@v4
+
+      - name: Build and Restart Containers
+        run: |
+          cd infrastructure/docker
+          # Export the lowercase owner so docker-compose picks it up
+          export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker compose pull
+          docker compose up -d --remove-orphans
+          docker image prune -af
