@@ -6,8 +6,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_API: ghcr.io/${{ github.repository_owner }}/snpseek-brapi-api-server
-  IMAGE_UI: ghcr.io/${{ github.repository_owner }}/snpseek-web-portal
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -23,6 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set lower case owner name
+        run: |
+          echo "OWNER_LC=${OWNER,,}" >> $GITHUB_ENV
+        env:
+          OWNER: "${{ github.repository_owner }}"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -36,8 +40,8 @@ jobs:
           context: apps/api-server
           push: true
           tags: |
-            ${{ env.IMAGE_API }}:latest
-            ${{ env.IMAGE_API }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-brapi-api-server:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-brapi-api-server:${{ github.sha }}
 
       - name: Build and Push UI Image
         uses: docker/build-push-action@v5
@@ -45,8 +49,8 @@ jobs:
           context: apps/web-portal
           push: true
           tags: |
-            ${{ env.IMAGE_UI }}:latest
-            ${{ env.IMAGE_UI }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-web-portal:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-web-portal:${{ github.sha }}
 
   # ---------------------------------------------------------------------------
   # Deploy to Remote Server
@@ -64,6 +68,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd projects/snpseek-brapi-v2/infrastructure/docker
+            # Export the lowercase owner so docker-compose picks it up
+            export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             docker compose pull
             docker compose up -d
             docker image prune -af
