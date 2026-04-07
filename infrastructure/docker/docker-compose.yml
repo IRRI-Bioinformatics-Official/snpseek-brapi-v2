@@ -20,10 +20,10 @@ services:
   # snp-api — Spring Boot BrAPI v2.1 resource server
   # ---------------------------------------------------------------------------
   snp-api:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-irri-snpseek}/snpseek-brapi-api-server:latest
     build:
       context: ../../apps/api-server
       dockerfile: Dockerfile
-    image: snpseek/brapi-api-server:latest
     container_name: snp-api
     restart: unless-stopped
     ports:
@@ -79,10 +79,10 @@ services:
   # snp-ui — Vite/React dashboard served by nginx
   # ---------------------------------------------------------------------------
   snp-ui:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-irri-snpseek}/snpseek-web-portal:latest
     build:
       context: ../../apps/web-portal
       dockerfile: Dockerfile
-    image: snpseek/web-portal:latest
     container_name: snp-ui
     restart: unless-stopped
     ports:

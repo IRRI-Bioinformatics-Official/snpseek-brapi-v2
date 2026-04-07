@@ -1,0 +1,69 @@
+name: CD - Build, Push and Deploy
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/snpseek-brapi-api-server
+  IMAGE_UI: ghcr.io/${{ github.repository_owner }}/snpseek-web-portal
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build and Push Docker Images
+  # ---------------------------------------------------------------------------
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api-server
+          push: true
+          tags: |
+            ${{ env.IMAGE_API }}:latest
+            ${{ env.IMAGE_API }}:${{ github.sha }}
+
+      - name: Build and Push UI Image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/web-portal
+          push: true
+          tags: |
+            ${{ env.IMAGE_UI }}:latest
+            ${{ env.IMAGE_UI }}:${{ github.sha }}
+
+  # ---------------------------------------------------------------------------
+  # Deploy to Remote Server
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to Server
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd projects/snpseek-brapi-v2/infrastructure/docker
+            docker compose pull
+            docker compose up -d
+            docker image prune -af
