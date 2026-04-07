@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: snpseek-brapi-api-server
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/snpseek}
+    username: ${DB_USER:snpseek}
+    password: ${DB_PASSWORD:snpseek}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      # Use 'validate' so Hibernate checks columns against the existing SNPseek
+      # schema without ever altering it.
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: public
+        # Disable open-session-in-view — streaming reads must manage their own
+        # sessions to avoid holding connections for the duration of a stream.
+        open-in-view: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Spring Boot will fetch JWKS and validate token signatures automatically
+          # via OIDC discovery at: ${issuer-uri}/.well-known/openid-configuration
+          issuer-uri: https://brs-snpseek.duckdns.org/auth/realms/snpseek_realm
+
+  # Disable Flyway/Liquibase; SNPseek manages its own schema.
+  flyway:
+    enabled: false
+
+server:
+  port: 8080
+
+brapi:
+  hdf5:
+    # Absolute path to the directory that contains HDF5 genotype files.
+    # Prepended to genotype_run.data_location (which stores filenames /
+    # relative paths such as "SNPuni_geno_NB_3k.h5") to produce an
+    # absolute path.  No trailing slash.
+    data-dir: ${HDF5_DATA_DIR:/data/snpseek/hdf5}
+    # Rows fetched per HDF5 hyperslab read call.
+    # Peak heap per call ≈ snp-chunk-size × nVarieties × 1 byte.
+    # Increase for fewer I/O round-trips; decrease to reduce heap pressure.
+    snp-chunk-size: 10000
+
+logging:
+  level:
+    org.irri.snpseek.brapi: DEBUG
+    org.hibernate.SQL: WARN

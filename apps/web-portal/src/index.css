@@ -1,0 +1,6 @@
+/* Tailwind CSS v4 — single import replaces base/components/utilities directives */
+@import "tailwindcss";
+
+/* AG-Grid core + theme */
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
