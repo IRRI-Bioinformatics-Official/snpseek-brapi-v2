@@ -36,11 +36,14 @@ else
     echo "GITHUB_REPOSITORY_OWNER=$OWNER_LC" >> .env
 fi
 echo "Using image owner: $OWNER_LC"
+# Override the shell env so docker compose uses the lowercase value
+# (.env alone is not enough — shell env takes precedence over .env)
+export GITHUB_REPOSITORY_OWNER="$OWNER_LC"
 
 echo "─── Building Images Locally ──────────────────────────────────────"
 echo "Building from source to bypass GHCR unauthorized errors..."
 
-# Build images locally. This prevents Docker from trying to pull 
+# Build images locally. This prevents Docker from trying to pull
 # from the private/unauthorized ghcr.io repository.
 docker compose build --no-cache snp-api snp-ui
 
