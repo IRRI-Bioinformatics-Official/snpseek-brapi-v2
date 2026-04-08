@@ -1,8 +1,14 @@
 #!/bin/bash
-# deploy.sh — Local Build & Deployment Script
+# deploy.sh — Same-server Build & Deployment Script
+set -e
 
-# 1. Navigate to the docker directory relative to the script location
-cd "$(dirname "$0")/../infrastructure/docker"
+# 1. Pull latest code
+REPO_ROOT="$(dirname "$0")/.."
+echo "─── Pulling Latest Code ──────────────────────────────────────────"
+git -C "$REPO_ROOT" pull
+
+# 2. Navigate to the docker directory relative to the script location
+cd "$REPO_ROOT/infrastructure/docker"
 
 echo "─── Syncing Environment ──────────────────────────────────────────"
 
@@ -19,12 +25,8 @@ fi
 echo "Checking for server environment variables..."
 [[ -n "$DB_USERNAME" ]] && echo "Found DB_USERNAME in server env. Updating .env..." && sed -i "s/^DB_USERNAME=.*/DB_USERNAME=$DB_USERNAME/" .env
 [[ -n "$DB_PASSWORD" ]] && echo "Found DB_PASSWORD in server env. Updating .env..." && sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$DB_PASSWORD/" .env
-
-# Set DB_HOST to host.docker.internal for WSL2 to reach Windows Postgres
-if grep -q "your-postgres-host-or-ip" .env || ! grep -q "DB_HOST=" .env; then
-    echo "Setting DB_HOST to host.docker.internal for WSL2 compatibility..."
-    sed -i "s/^DB_HOST=.*/DB_HOST=host.docker.internal/" .env
-fi
+# DB_HOST stays as localhost — PostgreSQL runs on the same server,
+# and host networking mode makes localhost resolve to the host directly.
 
 echo "─── Building Images Locally ──────────────────────────────────────"
 echo "Building from source to bypass GHCR unauthorized errors..."
