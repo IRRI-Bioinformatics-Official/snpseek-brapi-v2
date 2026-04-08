@@ -62,11 +62,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and Restart Containers
+      - name: Deploy with Script
+        # We use a login shell (-l) to ensure ~/.bashrc or ~/.profile are loaded
+        # so that the script can access DB_USERNAME and DB_PASSWORD from the server env.
         run: |
-          cd infrastructure/docker
-          # Export the lowercase owner so docker-compose picks it up
-          export GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          docker compose pull
-          docker compose up -d --remove-orphans
-          docker image prune -af
+          chmod +x config/deploy.sh
+          bash -l config/deploy.sh
