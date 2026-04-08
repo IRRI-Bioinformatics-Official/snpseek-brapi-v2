@@ -17,7 +17,7 @@ fi
 # If these variables are already exported in the server's environment (~/.bashrc, etc.),
 # they will be picked up here.
 echo "Checking for server environment variables..."
-[[ -n "$DB_USERNAME" ]] && echo "Found DB_USERNAME in server env. Updating .env..." && sed -i "s/^DB_USER=.*/DB_USER=$DB_USERNAME/" .env
+[[ -n "$DB_USERNAME" ]] && echo "Found DB_USERNAME in server env. Updating .env..." && sed -i "s/^DB_USERNAME=.*/DB_USERNAME=$DB_USERNAME/" .env
 [[ -n "$DB_PASSWORD" ]] && echo "Found DB_PASSWORD in server env. Updating .env..." && sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$DB_PASSWORD/" .env
 
 # Set DB_HOST to host.docker.internal for WSL2 to reach Windows Postgres
@@ -42,7 +42,7 @@ echo "─── Cleanup ──────────────────�
 docker image prune -af
 
 echo ""
-Deployment complete! Your services are running at:
+echo "Deployment complete! Your services are running at:"
 echo "  • UI: http://localhost:3000"
 echo "  • API Server: http://localhost:8081"
 echo ""
