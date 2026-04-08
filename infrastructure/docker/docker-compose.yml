@@ -1,12 +1,13 @@
 ###############################################################################
-# SNPseek BrAPI v2.1 — Docker Compose
+# SNPseek BrAPI v2.1 — Docker Compose (Host Networking)
 #
 # Managed services   : snp-api (Spring Boot)   snp-ui (React / nginx)
-# External services  : PostgreSQL (remote host) Keycloak (brs-snpseek.duckdns.org)
+# External services  : PostgreSQL (localhost:5432) Keycloak (remote)
 #
-# Both external services are reached by hostname/IP over the network —
-# no shared Docker network is required.  The internal "snpseek_internal"
-# bridge exists only so snp-ui's nginx can proxy to snp-api by service name.
+# Host networking mode: Both containers share the host's network stack.
+# - Containers reach each other via "localhost"
+# - Host services (Postgres) reached via "localhost"
+# - Both services bind directly to host ports (8081 and 3000)
 #
 # Required secrets — copy .env.example to .env and fill in values before
 # running `docker compose up`:
@@ -26,24 +27,20 @@ services:
       dockerfile: Dockerfile
     container_name: snp-api
     restart: unless-stopped
-    ports:
-      - "8081:8081"
+    network_mode: host
     env_file:
       - .env
     environment:
       # Use port 8081 as the standard for both local and containerised deployments.
       SERVER_PORT: "8081"
 
-      # Remote PostgreSQL — DB_HOST is the hostname or IP of your Postgres
-      # server.  The container reaches it directly over the network; no shared
-      # Docker network is needed.
-      SPRING_DATASOURCE_URL: "jdbc:postgresql://${DB_HOST}:${DB_PORT:-5432}/${DB_NAME:-snpseek}"
-      DB_HOST: "${DB_HOST}"
+      # Local PostgreSQL — In host network mode, "localhost" refers to the host.
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://${DB_HOST:-localhost}:${DB_PORT:-5432}/${DB_NAME:-snpseek}"
+      DB_HOST: "${DB_HOST:-localhost}"
       DB_USERNAME: "${DB_USERNAME}"
       DB_PASSWORD: "${DB_PASSWORD}"
 
-      # Keycloak — external HTTPS service; the container reaches it over the
-      # internet exactly as any other HTTPS client would.
+      # Keycloak — external HTTPS service; reached via public DNS/IP.
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "https://brs-snpseek.duckdns.org/auth/realms/snpseek_realm"
 
       # HDF5 base directory — prepended to genotype_run.data_location values.
@@ -55,19 +52,10 @@ services:
       # Explicit dialect so Hibernate can start even if the initial connection
       # probe fails (avoids "Unable to determine Dialect" crash on retry).
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.PostgreSQLDialect"
-    extra_hosts:
-      # Makes host.docker.internal resolve to the Docker host gateway IP.
-      # Required on Linux/WSL2 where Docker Engine does not inject this
-      # hostname automatically (unlike Docker Desktop on Mac/Windows).
-      # This allows the container to reach SSH tunnels bound to the host's
-      # localhost (e.g. the Postgres tunnel on localhost:5433).
-      - "host.docker.internal:host-gateway"
     volumes:
       # Host HDF5 data directory → /data inside the container (read-only).
       # genotype_run.data_location filenames are resolved relative to /data.
       - /home/lhbarboza/data:/data:ro
-    networks:
-      - snpseek_internal
     healthcheck:
       # /brapi/v2/serverinfo is a public BrAPI endpoint — no auth required.
       test: ["CMD-SHELL", "curl -sf http://localhost:8081/brapi/v2/serverinfo || exit 1"]
@@ -86,25 +74,13 @@ services:
       dockerfile: Dockerfile
     container_name: snp-ui
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    network_mode: host
     depends_on:
       snp-api:
         condition: service_healthy
-    networks:
-      - snpseek_internal
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:3000/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-
-# -----------------------------------------------------------------------------
-# Networks
-# -----------------------------------------------------------------------------
-networks:
-  # Internal bridge — lets snp-ui resolve "snp-api" by name when proxying
-  # /brapi requests.  Neither Postgres nor Keycloak need to join this network.
-  snpseek_internal:
-    driver: bridge
