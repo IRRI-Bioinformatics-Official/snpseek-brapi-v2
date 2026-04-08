@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  base: '/brapiv2ui/',
   build: {
     // AG-Grid community is ~1 MB minified — expected and unavoidable.
     chunkSizeWarningLimit: 1200,
