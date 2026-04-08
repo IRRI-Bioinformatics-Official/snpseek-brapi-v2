@@ -28,6 +28,15 @@ echo "Checking for server environment variables..."
 # DB_HOST stays as localhost — PostgreSQL runs on the same server,
 # and host networking mode makes localhost resolve to the host directly.
 
+# Docker image tags must be lowercase. Force GITHUB_REPOSITORY_OWNER to lowercase.
+OWNER_LC="${GITHUB_REPOSITORY_OWNER,,}"
+if grep -q "^GITHUB_REPOSITORY_OWNER=" .env; then
+    sed -i "s/^GITHUB_REPOSITORY_OWNER=.*/GITHUB_REPOSITORY_OWNER=$OWNER_LC/" .env
+else
+    echo "GITHUB_REPOSITORY_OWNER=$OWNER_LC" >> .env
+fi
+echo "Using image owner: $OWNER_LC"
+
 echo "─── Building Images Locally ──────────────────────────────────────"
 echo "Building from source to bypass GHCR unauthorized errors..."
 
