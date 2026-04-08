@@ -4,7 +4,7 @@ spring:
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/snpseek}
-    username: ${DB_USER:snpseek}
+    username: ${DB_USERNAME:snpseek}
     password: ${DB_PASSWORD:snpseek}
     hikari:
       maximum-pool-size: 10

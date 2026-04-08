@@ -38,7 +38,7 @@ services:
       # server.  The container reaches it directly over the network; no shared
       # Docker network is needed.
       SPRING_DATASOURCE_URL: "jdbc:postgresql://${DB_HOST}:${DB_PORT:-5432}/${DB_NAME:-snpseek}"
-      DB_USER: "${DB_USER}"
+      DB_USERNAME: "${DB_USERNAME}"
       DB_PASSWORD: "${DB_PASSWORD}"
 
       # Keycloak — external HTTPS service; the container reaches it over the

@@ -76,7 +76,7 @@ Edit `.env` with your database credentials:
 DB_HOST=host.docker.internal   # use this if connecting via SSH tunnel on localhost
 DB_PORT=5433                   # tunnel port (default Postgres is 5432)
 DB_NAME=snpseekv3
-DB_USER=iricadmin
+DB_USERNAME=iricadmin
 DB_PASSWORD=your_password
 ```
 
@@ -115,7 +115,7 @@ All configuration is injected via environment variables. See `infrastructure/doc
 | `DB_HOST` | PostgreSQL hostname or IP | — |
 | `DB_PORT` | PostgreSQL port | `5432` |
 | `DB_NAME` | Database name | `snpseek` |
-| `DB_USER` | Database user | — |
+| `DB_USERNAME` | Database user | — |
 | `DB_PASSWORD` | Database password | — |
 
 Additional settings in `apps/api-server/src/main/resources/application.yml`:
@@ -350,7 +350,7 @@ Displays server metadata and the list of supported BrAPI calls fetched live from
 cd apps/api-server
 export DB_HOST=localhost
 export DB_PORT=5433
-export DB_USER=iricadmin
+export DB_USERNAME=iricadmin
 export DB_PASSWORD=your_password
 export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/snpseekv3
 export HDF5_DATA_DIR=/home/lhbarboza/data
