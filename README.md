@@ -60,7 +60,7 @@ A [BrAPI v2.1](https://brapi.org/specification) implementation for the [SNP-Seek
 
 ---
 
-## Quick Start
+## Quick Start (Docker Compose)
 
 **1. Clone and configure**
 
@@ -70,21 +70,18 @@ cd snpseek-brapi-v2/infrastructure/docker
 cp .env.example .env
 ```
 
-Edit `.env` with your database credentials:
+Edit `.env` with your database credentials and genotype data path:
 
 ```dotenv
-DB_HOST=host.docker.internal   # use this if connecting via SSH tunnel on localhost
-DB_PORT=5433                   # tunnel port (default Postgres is 5432)
-DB_NAME=snpseekv3
-DB_USERNAME=iricadmin
+DB_HOST=localhost              # or host.docker.internal if via SSH tunnel
+DB_PORT=5432
+DB_NAME=snpseek
+DB_USERNAME=snpseek
 DB_PASSWORD=your_password
-```
 
-> **SSH tunnel tip:** If your Postgres is behind a jump host, bind the tunnel to all interfaces so Docker can reach it:
-> ```bash
-> ssh -L 0.0.0.0:5433:db-host:5432 user@jump-host -N &
-> ```
-> Then use `DB_HOST=host.docker.internal` in `.env`.
+# Path on your host machine where HDF5 files are stored
+HDF5_DATA_DIR=/home/user/data
+```
 
 **2. Start the stack**
 
@@ -94,11 +91,6 @@ docker compose up --build -d
 
 **3. Verify**
 
-```bash
-# Public endpoint — no auth required
-curl http://localhost:8081/brapi/v2/serverinfo
-```
-
 | Service | URL |
 |---|---|
 | BrAPI API | http://localhost:8081 |
@@ -106,27 +98,69 @@ curl http://localhost:8081/brapi/v2/serverinfo
 
 ---
 
-## Configuration
+## Production Deployment
 
-All configuration is injected via environment variables. See `infrastructure/docker/.env.example` for the full list.
+The project is designed for automated deployment via GitHub Actions to a self-hosted runner.
 
-| Variable | Description | Default |
-|---|---|---|
-| `DB_HOST` | PostgreSQL hostname or IP | — |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_NAME` | Database name | `snpseek` |
-| `DB_USERNAME` | Database user | — |
-| `DB_PASSWORD` | Database password | — |
+### Automated CD (GitHub Actions)
 
-Additional settings in `apps/api-server/src/main/resources/application.yml`:
+The `.github/workflows/cd.yml` workflow triggers on every push to the `master` branch. It performs the following steps:
 
-| Property | Description | Default |
-|---|---|---|
-| `brapi.hdf5.data-dir` | Host path where HDF5 files are mounted | `/data` |
-| `brapi.hdf5.snp-chunk-size` | Rows per HDF5 hyperslab read | `10000` |
-| `SERVER_PORT` | API server port inside the container | `8081` |
+1.  **Builds and Pushes** Docker images to GitHub Container Registry (GHCR).
+2.  **Deploys** to the target server using the `config/deploy.sh` script.
+
+### Manual Deployment (on the server)
+
+If you need to deploy manually on the production server, use the provided deployment script:
+
+```bash
+# Navigate to the project root
+chmod +x config/deploy.sh
+./config/deploy.sh
+```
+
+**What the `deploy.sh` script does:**
+- Pulls the latest code from `master`.
+- Synchronizes server-level environment variables (`DB_USERNAME`, `DB_PASSWORD`) into the `.env` file.
+- Builds the Docker images locally to ensure the latest source is used.
+- Restarts the services in detached mode.
+- Prunes old Docker images to save disk space.
+
+### Server Requirements
+
+For the production deployment to work correctly, ensure the following are configured on the target server:
+- **Docker & Docker Compose** installed.
+- **PostgreSQL** running and accessible from the host.
+- **Environment Variables:** Export `DB_USERNAME` and `DB_PASSWORD` in the server's environment (e.g., in `~/.bashrc` of the deployment user) so the script can pick them up.
+- **Data Volume:** Ensure the HDF5 data directory exists at the path specified in `docker-compose.yml` (default: `/home/lhbarboza/data`).
 
 ---
+
+## Development (Local)
+
+### Running the API locally (without Docker)
+
+Requires **Java 17** and **Maven**.
+
+```bash
+cd apps/api-server
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_USERNAME=snpseek
+export DB_PASSWORD=your_password
+export HDF5_DATA_DIR=/path/to/your/hdf5/data
+mvn spring-boot:run
+```
+
+### Running the frontend locally
+
+Requires **Node.js 18+**.
+
+```bash
+cd apps/web-portal
+npm install
+npm run dev        # starts at http://localhost:5173, proxies /brapi/* to localhost:8081
+```
 
 ## API Reference
 
