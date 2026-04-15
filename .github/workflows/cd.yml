@@ -28,11 +28,11 @@ jobs:
       # at the bottom of this file.
       # -----------------------------------------------------------------------
       - name: Deploy
-        # Use a login shell so ~/.bashrc / ~/.profile are sourced and the
-        # DB_USERNAME / DB_PASSWORD / etc. env vars are available to systemd.
         run: |
+          mkdir -p /opt/snpseek-brapi
           sudo systemctl stop snpseek-brapi || true
           cp target/snpseek-brapi-*.jar /opt/snpseek-brapi/snpseek-brapi.jar
+          sudo systemctl daemon-reload
           sudo systemctl start snpseek-brapi
 
       - name: Health check
@@ -84,9 +84,9 @@ jobs:
 #      KEYCLOAK_ISSUER_URI=https://your-keycloak/auth/realms/snpseek_realm
 #      HDF5_DATA_DIR=/data/hdf5
 #
-# 4. Allow the runner user to start/stop the service without a password:
-#      echo "<runner-user> ALL=(ALL) NOPASSWD: /bin/systemctl start snpseek-brapi, /bin/systemctl stop snpseek-brapi" \
-#        >> /etc/sudoers.d/snpseek-brapi
+# 4. Allow the runner user to manage the service without a password:
+#      echo "ec2-user ALL=(ALL) NOPASSWD: /bin/systemctl start snpseek-brapi, /bin/systemctl stop snpseek-brapi, /bin/systemctl daemon-reload, /usr/bin/journalctl" \
+#        | sudo tee /etc/sudoers.d/snpseek-brapi
 #
 # 5. Enable and do the first manual start:
 #      systemctl daemon-reload
