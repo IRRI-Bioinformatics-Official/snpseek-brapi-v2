@@ -1,4 +1,6 @@
 server:
+  servlet:
+    context-path: /brapiv2
   forward-headers-strategy: framework
 
 spring:
