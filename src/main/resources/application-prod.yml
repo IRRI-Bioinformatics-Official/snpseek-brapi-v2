@@ -1,3 +1,8 @@
+server:
+  servlet:
+    context-path: /brapiv2
+  forward-headers-strategy: framework
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL}
