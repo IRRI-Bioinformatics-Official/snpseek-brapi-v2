@@ -1,70 +1,95 @@
-name: CD - Build, Push and Deploy
+name: CD - Build and Deploy
 
 on:
   push:
     branches: [ "master" ]
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
-  # ---------------------------------------------------------------------------
-  # Build and Push Docker Images
-  # ---------------------------------------------------------------------------
-  build-and-push:
-    name: Build and Push Images
-    runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set lower case owner name
-        run: |
-          echo "OWNER_LC=${OWNER,,}" >> $GITHUB_ENV
-        env:
-          OWNER: "${{ github.repository_owner }}"
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Push API Image
-        uses: docker/build-push-action@v5
-        with:
-          context: apps/api-server
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-brapi-api-server:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-brapi-api-server:${{ github.sha }}
-
-      - name: Build and Push UI Image
-        uses: docker/build-push-action@v5
-        with:
-          context: apps/web-portal
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-web-portal:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/snpseek-web-portal:${{ github.sha }}
-
-  # ---------------------------------------------------------------------------
-  # Deploy to Local Server (Self-Hosted Runner)
-  # ---------------------------------------------------------------------------
   deploy:
-    name: Deploy to Server
-    needs: build-and-push
+    name: Build JAR and Deploy
     runs-on: self-hosted
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy with Script
-        # We use a login shell (-l) to ensure ~/.bashrc or ~/.profile are loaded
-        # so that the script can access DB_USERNAME and DB_PASSWORD from the server env.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR
+        run: mvn -B clean package -DskipTests
+
+      # -----------------------------------------------------------------------
+      # Stop the running service, swap the JAR, restart.
+      # Requires a one-time setup on the server — see the systemd unit template
+      # at the bottom of this file.
+      # -----------------------------------------------------------------------
+      - name: Deploy
+        # Use a login shell so ~/.bashrc / ~/.profile are sourced and the
+        # DB_USERNAME / DB_PASSWORD / etc. env vars are available to systemd.
         run: |
-          chmod +x config/deploy.sh
-          bash -l config/deploy.sh
+          sudo systemctl stop snpseek-brapi || true
+          cp target/snpseek-brapi-*.jar /opt/snpseek-brapi/snpseek-brapi.jar
+          sudo systemctl start snpseek-brapi
+
+      - name: Health check
+        run: |
+          echo "Waiting for application to start..."
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:8081/brapi/v2/serverinfo > /dev/null; then
+              echo "Application is up."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check timed out after 60s" >&2
+          sudo journalctl -u snpseek-brapi --no-pager -n 50
+          exit 1
+
+# =============================================================================
+# One-time server setup (run these commands once as root / sudo):
+#
+# 1. Create the deployment directory:
+#      mkdir -p /opt/snpseek-brapi
+#      chown <runner-user>:<runner-user> /opt/snpseek-brapi
+#
+# 2. Create /etc/systemd/system/snpseek-brapi.service:
+#
+#      [Unit]
+#      Description=SNPseek BrAPI v2.1
+#      After=network.target
+#
+#      [Service]
+#      User=<runner-user>
+#      WorkingDirectory=/opt/snpseek-brapi
+#      ExecStart=java -Xms256m -Xmx1g -jar /opt/snpseek-brapi/snpseek-brapi.jar \
+#                    --spring.profiles.active=prod
+#      EnvironmentFile=/opt/snpseek-brapi/app.env
+#      Restart=on-failure
+#      RestartSec=10
+#      StandardOutput=journal
+#      StandardError=journal
+#
+#      [Install]
+#      WantedBy=multi-user.target
+#
+# 3. Create /opt/snpseek-brapi/app.env (chmod 600, owned by runner-user):
+#
+#      SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/snpseek
+#      DB_USERNAME=snpseek
+#      DB_PASSWORD=secret
+#      KEYCLOAK_ISSUER_URI=https://your-keycloak/auth/realms/snpseek_realm
+#      HDF5_DATA_DIR=/data/hdf5
+#
+# 4. Allow the runner user to start/stop the service without a password:
+#      echo "<runner-user> ALL=(ALL) NOPASSWD: /bin/systemctl start snpseek-brapi, /bin/systemctl stop snpseek-brapi" \
+#        >> /etc/sudoers.d/snpseek-brapi
+#
+# 5. Enable and do the first manual start:
+#      systemctl daemon-reload
+#      systemctl enable snpseek-brapi
+#      systemctl start snpseek-brapi
+# =============================================================================

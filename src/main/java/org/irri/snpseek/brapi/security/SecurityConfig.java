@@ -21,9 +21,10 @@ import org.springframework.security.web.SecurityFilterChain;
  *
  * <p>Authorization rules:
  * <ul>
- *   <li>{@code /brapi/v2/genotyping/**} — requires a valid JWT <em>and</em>
- *       the Keycloak realm role {@code BRAPI_USER}.</li>
- *   <li>All other paths — publicly accessible (BrAPI discovery, server-info, etc.).</li>
+ *   <li>{@code /brapi/v2/search/variants/**} — requires BRAPI_USER Keycloak realm role.</li>
+ *   <li>{@code /brapi/v2/genotyping/**} — requires BRAPI_USER Keycloak realm role.</li>
+ *   <li>{@code /swagger-ui/**}, {@code /v3/api-docs/**} — public (Swagger UI).</li>
+ *   <li>All other paths — publicly accessible.</li>
  * </ul>
  */
 @Configuration
@@ -31,9 +32,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final String GENOTYPING_PATH   = "/brapi/v2/genotyping/**";
-    private static final String SEARCH_PATH       = "/brapi/v2/search/variants/**";
-    private static final String BRAPI_USER_ROLE   = "BRAPI_USER";
+    private static final String GENOTYPING_PATH = "/brapi/v2/genotyping/**";
+    private static final String SEARCH_PATH     = "/brapi/v2/search/variants/**";
+    private static final String BRAPI_USER_ROLE = "BRAPI_USER";
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -44,13 +45,19 @@ public class SecurityConfig {
                 sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             .authorizeHttpRequests(auth -> auth
+                // Swagger UI and OpenAPI spec — always public.
+                .requestMatchers(
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs",
+                        "/v3/api-docs/**"
+                ).permitAll()
                 // Genotyping endpoints require the Keycloak realm role BRAPI_USER.
                 // hasRole() automatically prepends "ROLE_", matching what
                 // KeycloakRoleConverter produces ("ROLE_BRAPI_USER").
                 .requestMatchers(GENOTYPING_PATH).hasRole(BRAPI_USER_ROLE)
                 .requestMatchers(SEARCH_PATH).hasRole(BRAPI_USER_ROLE)
-                // BrAPI server-info, token-handling, and other public endpoints
-                // are left open.  Tighten here as additional endpoints are added.
+                // BrAPI server-info and other public endpoints are left open.
                 .anyRequest().permitAll()
             )
 
@@ -72,8 +79,6 @@ public class SecurityConfig {
     public JwtAuthenticationConverter keycloakJwtConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
-        // Use the "preferred_username" claim as the principal name so that logs
-        // and audit entries show a human-readable identity instead of the subject UUID.
         converter.setPrincipalClaimName("preferred_username");
         return converter;
     }

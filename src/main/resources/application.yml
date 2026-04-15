@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: snpseek-brapi
+
+  jpa:
+    hibernate:
+      # Use 'validate' so Hibernate checks columns against the existing SNPseek
+      # schema without ever altering it.
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: public
+        # Disable open-session-in-view — streaming reads must manage their own
+        # sessions to avoid holding connections for the duration of a stream.
+        open-in-view: false
+
+  # Disable Flyway/Liquibase; SNPseek manages its own schema.
+  flyway:
+    enabled: false
+
+server:
+  port: 8081
+
+brapi:
+  hdf5:
+    # Rows fetched per HDF5 hyperslab read call.
+    # Peak heap per call ≈ snp-chunk-size × nVarieties × 1 byte.
+    # Increase for fewer I/O round-trips; decrease to reduce heap pressure.
+    snp-chunk-size: 10000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    display-request-duration: true
+  api-docs:
+    path: /v3/api-docs

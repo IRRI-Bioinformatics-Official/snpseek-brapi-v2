@@ -2,6 +2,8 @@
 
 A [BrAPI v2.1](https://brapi.org/specification) implementation for the [SNP-Seek](https://snp-seek.irri.org) rice genomics platform at IRRI. Exposes SNP variant metadata from PostgreSQL and genotype data from HDF5 files via a standard BrAPI REST API.
 
+Built with **Java 17**, **Spring Boot 3.2**, and **Maven**. API documentation is served interactively via **Swagger UI**.
+
 ---
 
 ## Table of Contents
@@ -9,11 +11,12 @@ A [BrAPI v2.1](https://brapi.org/specification) implementation for the [SNP-Seek
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
-- [Configuration](#configuration)
+- [Configuration Profiles](#configuration-profiles)
+- [Swagger UI](#swagger-ui)
 - [API Reference](#api-reference)
 - [Use Cases](#use-cases)
-- [Web Portal](#web-portal)
 - [Development](#development)
+- [Project Structure](#project-structure)
 - [Links](#links)
 
 ---
@@ -22,145 +25,133 @@ A [BrAPI v2.1](https://brapi.org/specification) implementation for the [SNP-Seek
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  snp-ui  (React + nginx)  :3000                 │
-│  - Variant search UI                            │
-│  - Proxies /brapi/* → snp-api                   │
-└────────────────────┬────────────────────────────┘
-                     │ internal Docker network
-┌────────────────────▼────────────────────────────┐
-│  snp-api  (Spring Boot)  :8081                  │
+│  Spring Boot  (port 8081)                       │
 │  - BrAPI v2.1 REST endpoints                    │
+│  - Swagger UI at /swagger-ui.html               │
 │  - JWT validation via Keycloak                  │
 │  - Reads variant metadata from PostgreSQL       │
 │  - Reads genotype matrix from HDF5 files        │
 └────────┬───────────────────────┬────────────────┘
          │                       │
     PostgreSQL              HDF5 files
-  (remote / tunnel)        (/data mount)
+  (existing SNPseek         (local directory)
+    schema, read-only)
 ```
 
 **Stack**
 
 | Layer | Technology |
 |---|---|
-| API server | Spring Boot 3.2.4, Java 17 |
+| Language | Java 17 |
+| Framework | Spring Boot 3.2.4 |
+| Build tool | Maven |
 | Database | PostgreSQL (existing SNP-Seek schema, read-only) |
+| ORM | Spring Data JPA / Hibernate |
 | Genotype storage | HDF5 via [jhdf](https://github.com/jamesmudd/jhdf) |
 | Auth | Keycloak OAuth2 / JWT |
-| Frontend | React 18, Vite 6, Tailwind CSS 4, AG-Grid |
-| Deployment | Docker, Docker Compose |
+| API docs | Springdoc OpenAPI 2.3 (Swagger UI) |
 
 ---
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- Access to a remote PostgreSQL SNP-Seek database (direct or via SSH tunnel)
-- HDF5 genotype files accessible on the host at `/home/lhbarboza/data` (or configure a different path)
+- **Java 17** (Temurin or OpenJDK)
+- **Maven 3.8+**
+- Access to a PostgreSQL SNP-Seek database (direct or via SSH tunnel)
+- HDF5 genotype files accessible on the host
 
 ---
 
-## Quick Start (Docker Compose)
+## Quick Start
 
-**1. Clone and configure**
+**1. Clone the repository**
 
 ```bash
 git clone <repo-url>
-cd snpseek-brapi-v2/infrastructure/docker
-cp .env.example .env
+cd snpseek-brapi-v2
 ```
 
-Edit `.env` with your database credentials and genotype data path:
-
-```dotenv
-DB_HOST=localhost              # or host.docker.internal if via SSH tunnel
-DB_PORT=5432
-DB_NAME=snpseek
-DB_USERNAME=snpseek
-DB_PASSWORD=your_password
-
-# Path on your host machine where HDF5 files are stored
-HDF5_DATA_DIR=/home/user/data
-```
-
-**2. Start the stack**
+**2. Set environment variables**
 
 ```bash
-docker compose up --build -d
-```
-
-**3. Verify**
-
-| Service | URL |
-|---|---|
-| BrAPI API | http://localhost:8081 |
-| Web portal | http://localhost:3000 |
-
----
-
-## Production Deployment
-
-The project is designed for automated deployment via GitHub Actions to a self-hosted runner.
-
-### Automated CD (GitHub Actions)
-
-The `.github/workflows/cd.yml` workflow triggers on every push to the `master` branch. It performs the following steps:
-
-1.  **Builds and Pushes** Docker images to GitHub Container Registry (GHCR).
-2.  **Deploys** to the target server using the `config/deploy.sh` script.
-
-### Manual Deployment (on the server)
-
-If you need to deploy manually on the production server, use the provided deployment script:
-
-```bash
-# Navigate to the project root
-chmod +x config/deploy.sh
-./config/deploy.sh
-```
-
-**What the `deploy.sh` script does:**
-- Pulls the latest code from `master`.
-- Synchronizes server-level environment variables (`DB_USERNAME`, `DB_PASSWORD`) into the `.env` file.
-- Builds the Docker images locally to ensure the latest source is used.
-- Restarts the services in detached mode.
-- Prunes old Docker images to save disk space.
-
-### Server Requirements
-
-For the production deployment to work correctly, ensure the following are configured on the target server:
-- **Docker & Docker Compose** installed.
-- **PostgreSQL** running and accessible from the host.
-- **Environment Variables:** Export `DB_USERNAME` and `DB_PASSWORD` in the server's environment (e.g., in `~/.bashrc` of the deployment user) so the script can pick them up.
-- **Data Volume:** Ensure the HDF5 data directory exists at the path specified in `docker-compose.yml` (default: `/home/lhbarboza/data`).
-
----
-
-## Development (Local)
-
-### Running the API locally (without Docker)
-
-Requires **Java 17** and **Maven**.
-
-```bash
-cd apps/api-server
-export DB_HOST=localhost
-export DB_PORT=5432
 export DB_USERNAME=snpseek
 export DB_PASSWORD=your_password
-export HDF5_DATA_DIR=/path/to/your/hdf5/data
-mvn spring-boot:run
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/snpseek
+export HDF5_DATA_DIR=/path/to/hdf5/files
+export KEYCLOAK_ISSUER_URI=https://your-keycloak/auth/realms/snpseek_realm
 ```
 
-### Running the frontend locally
-
-Requires **Node.js 18+**.
+**3. Run in development mode**
 
 ```bash
-cd apps/web-portal
-npm install
-npm run dev        # starts at http://localhost:5173, proxies /brapi/* to localhost:8081
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
+
+**4. Verify**
+
+| Resource | URL |
+|---|---|
+| Swagger UI | http://localhost:8081/swagger-ui.html |
+| OpenAPI spec (JSON) | http://localhost:8081/v3/api-docs |
+| Server info | http://localhost:8081/brapi/v2/serverinfo |
+
+---
+
+## Configuration Profiles
+
+The application uses three YAML files:
+
+| File | Purpose |
+|---|---|
+| `application.yml` | Common settings shared across all profiles (JPA, server port, Swagger) |
+| `application-dev.yml` | Development: verbose logging, lenient DB defaults, local HDF5 path |
+| `application-prod.yml` | Production: strict env-var requirements, INFO-level logging |
+
+### Activating a profile
+
+**Via command line:**
+
+```bash
+# Development
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Production (all env vars must be set)
+java -jar target/snpseek-brapi-2.1.0-SNAPSHOT.jar --spring.profiles.active=prod
+```
+
+**Via environment variable:**
+
+```bash
+export SPRING_PROFILES_ACTIVE=prod
+java -jar target/snpseek-brapi-2.1.0-SNAPSHOT.jar
+```
+
+### Environment variables
+
+| Variable | Profile | Required | Description |
+|---|---|---|---|
+| `SPRING_DATASOURCE_URL` | dev (optional), prod | prod: yes | Full JDBC URL |
+| `DB_USERNAME` | both | prod: yes | Database username |
+| `DB_PASSWORD` | both | prod: yes | Database password |
+| `KEYCLOAK_ISSUER_URI` | both | prod: yes | Keycloak realm issuer URI |
+| `HDF5_DATA_DIR` | both | prod: yes | Directory containing `.h5` genotype files |
+
+---
+
+## Swagger UI
+
+Navigate to **http://localhost:8081/swagger-ui.html** after starting the application.
+
+To call protected endpoints directly from the UI:
+
+1. Obtain a Keycloak JWT token (see [Get a token](#5-get-a-keycloak-token-for-scripting) below)
+2. Click the **Authorize** button (lock icon) in the top-right of the Swagger UI
+3. Enter: `Bearer <your-token>`
+4. All subsequent requests in the UI will include the token
+
+The raw OpenAPI 3.0 specification is available at `/v3/api-docs`.
+
+---
 
 ## API Reference
 
@@ -201,7 +192,7 @@ curl http://localhost:8081/brapi/v2/serverinfo
 
 ### Protected endpoints (require `Authorization: Bearer <token>`)
 
-All genotyping and search endpoints require a valid Keycloak JWT with the `BRAPI_USER` realm role.
+All search endpoints require a valid Keycloak JWT with the `BRAPI_USER` realm role.
 
 #### `POST /brapi/v2/search/variants`
 
@@ -359,78 +350,93 @@ TOKEN=$(curl -s -X POST \
 
 ---
 
-## Web Portal
-
-Open **http://localhost:3000** in your browser.
-
-### Variant Search tab
-
-1. Paste your Keycloak Bearer token in the token field
-2. Fill in optional filters (variant set, chromosome, position range, page size)
-3. Click **Search Variants**
-4. Results appear in the AG-Grid table — sortable, filterable, and exportable to CSV
-
-### Server Info tab
-
-Displays server metadata and the list of supported BrAPI calls fetched live from `/brapi/v2/serverinfo`. No authentication required.
-
----
-
 ## Development
-
-### Running the API locally (without Docker)
-
-```bash
-cd apps/api-server
-export DB_HOST=localhost
-export DB_PORT=5433
-export DB_USERNAME=iricadmin
-export DB_PASSWORD=your_password
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/snpseekv3
-export HDF5_DATA_DIR=/home/lhbarboza/data
-mvn spring-boot:run
-```
-
-### Running the frontend locally
-
-```bash
-cd apps/web-portal
-npm install
-npm run dev        # starts at http://localhost:5173, proxies /brapi/* to localhost:8081
-```
 
 ### Running tests
 
 ```bash
-cd apps/api-server
 mvn test
 ```
 
-### Project structure
+### Building a production JAR
+
+```bash
+mvn clean package -DskipTests
+java -jar target/snpseek-brapi-2.1.0-SNAPSHOT.jar --spring.profiles.active=prod
+```
+
+### Deploying to a server
+
+Copy the JAR and start it with the `prod` profile and required environment variables:
+
+```bash
+export SPRING_PROFILES_ACTIVE=prod
+export SPRING_DATASOURCE_URL=jdbc:postgresql://db-host:5432/snpseek
+export DB_USERNAME=snpseek
+export DB_PASSWORD=secret
+export KEYCLOAK_ISSUER_URI=https://auth.example.com/auth/realms/snpseek_realm
+export HDF5_DATA_DIR=/data/hdf5
+
+java -Xms256m -Xmx1g -jar snpseek-brapi-2.1.0-SNAPSHOT.jar
+```
+
+To run as a background service, create a `systemd` unit file or use a process manager such as `supervisord`.
+
+---
+
+## Project Structure
 
 ```
 snpseek-brapi-v2/
-├── apps/
-│   ├── api-server/               # Spring Boot BrAPI server
-│   │   ├── src/main/java/.../
-│   │   │   ├── controller/       # REST controllers
-│   │   │   ├── domain/           # JPA entities (read-only)
-│   │   │   ├── dto/              # BrAPI response/request records
-│   │   │   ├── repository/       # Spring Data repositories
-│   │   │   ├── security/         # Keycloak JWT config
-│   │   │   └── service/          # Search logic, HDF5 reader
-│   │   └── src/main/resources/
-│   │       └── application.yml
-│   └── web-portal/               # React SPA
-│       └── src/
-│           ├── App.jsx
-│           └── components/
+├── pom.xml                           # Maven build configuration
+├── src/
+│   ├── main/
+│   │   ├── java/org/irri/snpseek/brapi/
+│   │   │   ├── BrapiApplication.java       # Spring Boot entry point
+│   │   │   ├── config/
+│   │   │   │   └── OpenApiConfig.java      # Swagger / OpenAPI bean
+│   │   │   ├── controller/
+│   │   │   │   ├── ServerInfoController.java
+│   │   │   │   └── VariantSearchController.java
+│   │   │   ├── domain/                     # JPA entities (read-only)
+│   │   │   │   ├── SnpMetadata.java
+│   │   │   │   ├── VariantSet.java
+│   │   │   │   ├── Platform.java
+│   │   │   │   └── GenotypeRun.java
+│   │   │   ├── dto/                        # BrAPI request/response records
+│   │   │   │   ├── VariantSearchRequest.java
+│   │   │   │   ├── Variant.java
+│   │   │   │   ├── BrapiResponse.java
+│   │   │   │   ├── BrapiListResponse.java
+│   │   │   │   ├── BrapiSearchResponse.java
+│   │   │   │   ├── ServerInfo.java
+│   │   │   │   ├── BrapiMetadata.java
+│   │   │   │   └── BrapiPagination.java
+│   │   │   ├── repository/
+│   │   │   │   ├── SnpMetadataRepository.java
+│   │   │   │   └── VariantSetRepository.java
+│   │   │   ├── security/
+│   │   │   │   ├── SecurityConfig.java
+│   │   │   │   └── KeycloakRoleConverter.java
+│   │   │   └── service/
+│   │   │       ├── VariantSearchService.java
+│   │   │       ├── GenotypeStorageService.java
+│   │   │       └── impl/
+│   │   │           └── Hdf5GenotypeStorageService.java
+│   │   └── resources/
+│   │       ├── application.yml             # Common / base configuration
+│   │       ├── application-dev.yml         # Development profile
+│   │       └── application-prod.yml        # Production profile
+│   └── test/
+│       └── java/org/irri/snpseek/brapi/
+│           └── service/
+│               └── VariantSearchServiceTest.java
 ├── docs/
-│   └── schema/db_spec.md         # Database schema reference
-└── infrastructure/
-    └── docker/
-        ├── docker-compose.yml
-        └── .env.example
+│   └── schema/
+│       └── db_spec.md                      # Database schema reference
+└── .github/
+    └── workflows/
+        └── ci.yml                          # CI: build and test on every push
 ```
 
 ---
@@ -444,4 +450,5 @@ snpseek-brapi-v2/
 | SNP-Seek platform | https://snp-seek.irri.org |
 | IRRI | https://www.irri.org |
 | jhdf (HDF5 library) | https://github.com/jamesmudd/jhdf |
+| Springdoc OpenAPI | https://springdoc.org |
 | Keycloak | https://www.keycloak.org |

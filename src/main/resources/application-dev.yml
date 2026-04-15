@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/snpseekv3}
+    username: ${DB_USERNAME:snpseek}
+    password: ${DB_PASSWORD:snpseek}
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 30000
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://brs-snpseek.duckdns.org/auth/realms/snpseek_realm}
+
+brapi:
+  hdf5:
+    # Absolute path to the directory that contains HDF5 genotype files.
+    data-dir: ${HDF5_DATA_DIR:/home/lhbarboza/data}
+
+logging:
+  level:
+    org.irri.snpseek.brapi: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
