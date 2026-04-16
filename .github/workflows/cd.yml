@@ -19,18 +19,30 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Stop service
+        run: |
+          sudo systemctl stop snpseek-brapi || true
+          # Wait until port 8081 is released (up to 30s)
+          for i in $(seq 1 6); do
+            if ! ss -tlnp | grep -q ':8081 '; then
+              echo "Port 8081 is free."
+              break
+            fi
+            echo "Waiting for port 8081 to be released..."
+            sleep 5
+          done
+
       - name: Build JAR
         run: mvn -B clean package -DskipTests
 
       # -----------------------------------------------------------------------
-      # Stop the running service, swap the JAR, restart.
+      # Swap the JAR and restart. Service is already stopped by the step above.
       # Requires a one-time setup on the server — see the systemd unit template
       # at the bottom of this file.
       # -----------------------------------------------------------------------
       - name: Deploy
         run: |
           mkdir -p /opt/snpseek-brapi
-          sudo systemctl stop snpseek-brapi || true
           cp target/snpseek-brapi-*.jar /opt/snpseek-brapi/snpseek-brapi.jar
           sudo systemctl daemon-reload
           sudo systemctl start snpseek-brapi
