@@ -43,8 +43,15 @@ public class ServerInfoController {
 
     private static BrapiResponse<ServerInfo> buildResponse() {
         List<ServiceCall> calls = List.of(
-                new ServiceCall("serverinfo",      List.of("GET"),         List.of("2.1")),
-                new ServiceCall("search/variants", List.of("POST", "GET"), List.of("2.1"))
+                new ServiceCall("serverinfo",                      List.of("GET"),         List.of("2.1")),
+                new ServiceCall("search/variants",                 List.of("POST", "GET"), List.of("2.1")),
+                new ServiceCall("germplasm",                       List.of("GET"),         List.of("2.1")),
+                new ServiceCall("search/germplasm",                List.of("POST", "GET"), List.of("2.1")),
+                new ServiceCall("variantsets",                     List.of("GET"),         List.of("2.1")),
+                new ServiceCall("variantsets/{variantSetDbId}/callsets", List.of("GET"),   List.of("2.1")),
+                new ServiceCall("callsets",                        List.of("GET"),         List.of("2.1")),
+                new ServiceCall("allelematrix",                    List.of("GET"),         List.of("2.1")),
+                new ServiceCall("search/allelematrix",             List.of("POST", "GET"), List.of("2.1"))
         );
 
         ServerInfo info = new ServerInfo(

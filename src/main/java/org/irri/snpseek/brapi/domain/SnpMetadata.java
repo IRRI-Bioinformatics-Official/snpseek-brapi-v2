@@ -46,6 +46,14 @@ public class SnpMetadata {
     @Column(name = "altcall")
     private String altcall;
 
+    /**
+     * 0-based row index into the HDF5 genotype matrix for this SNP position.
+     * Used by {@link org.irri.snpseek.brapi.service.AlleleMatrixService} to
+     * address the correct row when slicing a sub-matrix.
+     */
+    @Column(name = "allele_index")
+    private Long alleleIndex;
+
     // -------------------------------------------------------------------------
     // Accessors (no setters — immutable view)
     // -------------------------------------------------------------------------
@@ -56,4 +64,5 @@ public class SnpMetadata {
     public String  getVariantset()   { return variantset; }
     public String  getRefcall()      { return refcall; }
     public String  getAltcall()      { return altcall; }
+    public Long    getAlleleIndex()   { return alleleIndex; }
 }
