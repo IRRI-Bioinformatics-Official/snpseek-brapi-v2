@@ -80,14 +80,14 @@ public class AlleleMatrixService {
             return emptyMatrix(req, 0L, 0L);
         }
         String variantSetDbIdStr = req.variantSetDbIds().get(0);
-        long   variantSetDbId;
+        Integer variantSetDbId;
         try {
-            variantSetDbId = Long.parseLong(variantSetDbIdStr);
+            variantSetDbId = Integer.parseInt(variantSetDbIdStr);
         } catch (NumberFormatException e) {
             return emptyMatrix(req, 0L, 0L);
         }
 
-        Optional<VariantSet> vsOpt = variantSetRepository.findById((int) variantSetDbId);
+        Optional<VariantSet> vsOpt = variantSetRepository.findById(variantSetDbId);
         if (vsOpt.isEmpty()) {
             return emptyMatrix(req, 0L, 0L);
         }

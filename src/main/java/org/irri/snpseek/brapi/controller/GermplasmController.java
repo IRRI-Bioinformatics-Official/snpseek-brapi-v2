@@ -118,9 +118,9 @@ public class GermplasmController {
     public BrapiResponse<GermplasmDto> getGermplasm(
             @Parameter(description = "Numeric germplasmDbId (stock_id)", required = true)
             @PathVariable String germplasmDbId) {
-        long stockId;
+        Integer stockId;
         try {
-            stockId = Long.parseLong(germplasmDbId);
+            stockId = Integer.parseInt(germplasmDbId);
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Germplasm not found for germplasmDbId: " + germplasmDbId);

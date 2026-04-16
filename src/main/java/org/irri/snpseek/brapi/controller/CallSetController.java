@@ -178,7 +178,7 @@ public class CallSetController {
             }
             if (germplasmDbId != null && !germplasmDbId.isBlank()) {
                 try {
-                    predicates.add(cb.equal(root.get("stockId"), Long.parseLong(germplasmDbId)));
+                    predicates.add(cb.equal(root.get("stockId"), Integer.parseInt(germplasmDbId)));
                 } catch (NumberFormatException ignored) {
                     predicates.add(cb.disjunction()); // no match
                 }

@@ -73,7 +73,7 @@ public class GermplasmService {
      * @param stockId the germplasmDbId (numeric stock_id from the view)
      * @return first matching row, or empty
      */
-    public Optional<Germplasm> findByGermplasmDbId(Long stockId) {
+    public Optional<Germplasm> findByGermplasmDbId(Integer stockId) {
         Specification<Germplasm> spec = (root, query, cb) ->
                 cb.equal(root.get("stockId"), stockId);
         return germplasmRepository.findAll(spec, PageRequest.of(0, 1))
@@ -108,8 +108,8 @@ public class GermplasmService {
 
             // germplasmDbIds → stock_id IN (...)
             if (notEmpty(req.germplasmDbIds())) {
-                List<Long> ids = req.germplasmDbIds().stream()
-                        .map(Long::parseLong)
+                List<Integer> ids = req.germplasmDbIds().stream()
+                        .map(Integer::parseInt)
                         .toList();
                 predicates.add(root.get("stockId").in(ids));
             }

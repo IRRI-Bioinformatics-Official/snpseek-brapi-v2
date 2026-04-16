@@ -10,7 +10,7 @@ import org.hibernate.annotations.Immutable;
  * <pre>
  * v_allstock_basicprop
  * ├── stock_sample_id  int4       PK  (HDF5 column index = callSetDbId)
- * ├── stock_id         bigint         (germplasmDbId)
+ * ├── stock_id         int4           (germplasmDbId)
  * ├── name             varchar
  * ├── assay            varchar        (irisId)
  * ├── ori_country      varchar
@@ -31,7 +31,7 @@ public class Germplasm {
 
     /** germplasmDbId in BrAPI terms. */
     @Column(name = "stock_id")
-    private Long stockId;
+    private Integer stockId;
 
     @Column(name = "name")
     private String name;
@@ -61,7 +61,7 @@ public class Germplasm {
     // -------------------------------------------------------------------------
 
     public Integer getStockSampleId()   { return stockSampleId; }
-    public Long   getStockId()         { return stockId; }
+    public Integer getStockId()         { return stockId; }
     public String getName()            { return name; }
     public String getIrisId()          { return irisId; }
     public String getCountry()         { return country; }
