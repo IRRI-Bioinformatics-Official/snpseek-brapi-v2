@@ -40,7 +40,7 @@ public interface GenotypeStorageService {
      * @param variantSetDbId PK of the target {@link VariantSet}
      * @return lazy {@link Stream} of {@link GenotypeCall} records; never null
      */
-    Stream<GenotypeCall> streamCallsByVariantSet(Long variantSetDbId);
+    Stream<GenotypeCall> streamCallsByVariantSet(Integer variantSetDbId);
 
     // -------------------------------------------------------------------------
     // Paginated reads (used by BrAPI /calls endpoint)
@@ -54,7 +54,7 @@ public interface GenotypeStorageService {
      * @return {@link GenotypeCallPage} containing the requested slice and
      *         total-count metadata for BrAPI pagination envelopes
      */
-    GenotypeCallPage pageCallsByVariantSet(Long variantSetDbId, Pageable pageable);
+    GenotypeCallPage pageCallsByVariantSet(Integer variantSetDbId, Pageable pageable);
 
     // -------------------------------------------------------------------------
     // Sub-matrix fetch (direct HDF5 hyperslab access)
@@ -74,7 +74,7 @@ public interface GenotypeStorageService {
      * @param varietyIndexes ordered list of 0-based column indexes to include; must not be empty
      * @return {@link SubMatrix} wrapping the raw byte calls and index metadata
      */
-    SubMatrix fetchSubMatrix(Long variantSetDbId, long snpStart, long snpEnd, List<Integer> varietyIndexes);
+    SubMatrix fetchSubMatrix(Integer variantSetDbId, long snpStart, long snpEnd, List<Integer> varietyIndexes);
 
     // -------------------------------------------------------------------------
     // Metadata
@@ -88,7 +88,7 @@ public interface GenotypeStorageService {
      * @param variantSetDbId PK of the target {@link VariantSet}
      * @return array of format descriptors, e.g. {@code ["application/x-hdf5", "text/tsv"]}
      */
-    String[] availableFormats(Long variantSetDbId);
+    String[] availableFormats(Integer variantSetDbId);
 
     // -------------------------------------------------------------------------
     // Nested value types

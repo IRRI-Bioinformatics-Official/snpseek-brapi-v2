@@ -176,7 +176,7 @@ public class VariantSetController {
 
     private VariantSetDto toDto(VariantSet vs) {
         String name = vs.getName();
-        long   variantSetDbId = vs.getVariantSetId().longValue();
+        Integer variantSetDbId = vs.getVariantSetId();
 
         // Count SNPs and samples for this variant set
         Specification<SnpMetadata> snpSpec =

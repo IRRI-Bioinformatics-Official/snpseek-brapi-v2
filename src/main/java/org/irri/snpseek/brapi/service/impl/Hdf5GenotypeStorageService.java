@@ -114,8 +114,8 @@ public class Hdf5GenotypeStorageService implements GenotypeStorageService {
     }
 
     /** Resolve the HDF5 path from the variantset → platform → genotype_run chain. */
-    private ReaderHandle handleFor(Long variantSetDbId) {
-        VariantSet vs = variantSetRepository.findByIdWithGenotypeRuns(variantSetDbId.intValue())
+    private ReaderHandle handleFor(Integer variantSetDbId) {
+        VariantSet vs = variantSetRepository.findByIdWithGenotypeRuns(variantSetDbId)
             .orElseThrow(() -> new EntityNotFoundException("VariantSet not found: " + variantSetDbId));
 
         String dataLocation = vs.getPlatforms().stream()
@@ -147,7 +147,7 @@ public class Hdf5GenotypeStorageService implements GenotypeStorageService {
 
     @Override
     public SubMatrix fetchSubMatrix(
-            Long variantSetDbId,
+            Integer variantSetDbId,
             long snpStart,
             long snpEnd,
             List<Integer> varietyIndexes) {
@@ -208,7 +208,7 @@ public class Hdf5GenotypeStorageService implements GenotypeStorageService {
     // -------------------------------------------------------------------------
 
     @Override
-    public Stream<GenotypeCall> streamCallsByVariantSet(Long variantSetDbId) {
+    public Stream<GenotypeCall> streamCallsByVariantSet(Integer variantSetDbId) {
         ReaderHandle h   = handleFor(variantSetDbId);
         int  totalCols   = (int) h.totalVarieties;
         long totalChunks = (h.totalSnps + snpChunkSize - 1) / snpChunkSize;
@@ -244,7 +244,7 @@ public class Hdf5GenotypeStorageService implements GenotypeStorageService {
     // -------------------------------------------------------------------------
 
     @Override
-    public GenotypeCallPage pageCallsByVariantSet(Long variantSetDbId, Pageable pageable) {
+    public GenotypeCallPage pageCallsByVariantSet(Integer variantSetDbId, Pageable pageable) {
         ReaderHandle h    = handleFor(variantSetDbId);
         int  totalCols    = (int) h.totalVarieties;
         long pageSnpStart = (long) pageable.getPageNumber() * pageable.getPageSize();
@@ -283,7 +283,7 @@ public class Hdf5GenotypeStorageService implements GenotypeStorageService {
     // -------------------------------------------------------------------------
 
     @Override
-    public String[] availableFormats(Long variantSetDbId) {
+    public String[] availableFormats(Integer variantSetDbId) {
         return new String[]{"application/x-hdf5", "text/tab-separated-values"};
     }
 
