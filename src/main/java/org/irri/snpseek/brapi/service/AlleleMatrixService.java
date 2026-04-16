@@ -127,13 +127,13 @@ public class AlleleMatrixService {
         long snpStart = snps.stream()
                 .map(SnpMetadata::getAlleleIndex)
                 .filter(idx -> idx != null)
-                .mapToLong(Long::longValue)
+                .mapToLong(Integer::longValue)
                 .min()
                 .orElse(0L);
         long snpEnd = snps.stream()
                 .map(SnpMetadata::getAlleleIndex)
                 .filter(idx -> idx != null)
-                .mapToLong(Long::longValue)
+                .mapToLong(Integer::longValue)
                 .max()
                 .orElse(0L) + 1L;
 
@@ -150,9 +150,9 @@ public class AlleleMatrixService {
             decoded = subMatrix.decoded();
 
             // Build alleleIndex → row mapping within the sub-matrix
-            Map<Long, Integer> alleleIndexToRow = new HashMap<>();
+            Map<Integer, Integer> alleleIndexToRow = new HashMap<>();
             for (int i = 0; i < snps.size(); i++) {
-                Long ai = snps.get(i).getAlleleIndex();
+                Integer ai = snps.get(i).getAlleleIndex();
                 if (ai != null) {
                     alleleIndexToRow.put(ai, (int)(ai - snpStart));
                 }
@@ -161,7 +161,7 @@ public class AlleleMatrixService {
             // 8. Build ordered dataMatrix rows matching the snp page order
             List<List<String>> matrix = new ArrayList<>(snps.size());
             for (SnpMetadata snp : snps) {
-                Long ai = snp.getAlleleIndex();
+                Integer ai = snp.getAlleleIndex();
                 if (ai == null || !alleleIndexToRow.containsKey(ai)) {
                     List<String> missingRow = new ArrayList<>(callSets.size());
                     for (int c = 0; c < callSets.size(); c++) missingRow.add("./.");

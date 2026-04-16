@@ -15,7 +15,8 @@ import org.hibernate.annotations.Immutable;
  * ├── position        integer
  * ├── variantset      varchar
  * ├── refcall         char(1)
- * └── altcall         varchar
+ * ├── altcall         varchar
+ * └── allele_index    integer
  * </pre>
  */
 @Entity
@@ -52,7 +53,7 @@ public class SnpMetadata {
      * address the correct row when slicing a sub-matrix.
      */
     @Column(name = "allele_index")
-    private Long alleleIndex;
+    private Integer alleleIndex;
 
     // -------------------------------------------------------------------------
     // Accessors (no setters — immutable view)
@@ -64,5 +65,5 @@ public class SnpMetadata {
     public String  getVariantset()   { return variantset; }
     public String  getRefcall()      { return refcall; }
     public String  getAltcall()      { return altcall; }
-    public Long    getAlleleIndex()   { return alleleIndex; }
+    public Integer getAlleleIndex()   { return alleleIndex; }
 }
