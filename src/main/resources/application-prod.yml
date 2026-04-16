@@ -21,6 +21,14 @@ brapi:
     # Absolute path to the directory that contains HDF5 genotype files.
     data-dir: ${HDF5_DATA_DIR}
 
+# Swagger UI runs in the browser and constructs API doc URLs as absolute paths.
+# Behind Nginx at /brapiv2/, those paths must include the public prefix so the
+# browser fetches from /brapiv2/v3/api-docs/... instead of /v3/api-docs/...
+springdoc:
+  swagger-ui:
+    config-url: /brapiv2/v3/api-docs/swagger-config
+    url: /brapiv2/v3/api-docs
+
 logging:
   level:
     org.irri.snpseek.brapi: INFO
