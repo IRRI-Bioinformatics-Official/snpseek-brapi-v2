@@ -9,7 +9,7 @@ import org.hibernate.annotations.Immutable;
  *
  * <pre>
  * v_allstock_basicprop
- * ├── stock_sample_id  bigint     PK  (HDF5 column index = callSetDbId)
+ * ├── stock_sample_id  int4       PK  (HDF5 column index = callSetDbId)
  * ├── stock_id         bigint         (germplasmDbId)
  * ├── name             varchar
  * ├── assay            varchar        (irisId)
@@ -27,7 +27,7 @@ public class Germplasm {
 
     @Id
     @Column(name = "stock_sample_id", nullable = false)
-    private Long stockSampleId;
+    private Integer stockSampleId;
 
     /** germplasmDbId in BrAPI terms. */
     @Column(name = "stock_id")
@@ -60,7 +60,7 @@ public class Germplasm {
     // Accessors (no setters — immutable view)
     // -------------------------------------------------------------------------
 
-    public Long   getStockSampleId()   { return stockSampleId; }
+    public Integer getStockSampleId()   { return stockSampleId; }
     public Long   getStockId()         { return stockId; }
     public String getName()            { return name; }
     public String getIrisId()          { return irisId; }

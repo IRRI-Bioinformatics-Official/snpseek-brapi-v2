@@ -126,9 +126,9 @@ public class CallSetController {
     public BrapiResponse<CallSetDto> getCallSet(
             @Parameter(description = "Numeric callSetDbId (stock_sample_id)", required = true)
             @PathVariable String callSetDbId) {
-        long stockSampleId;
+        int stockSampleId;
         try {
-            stockSampleId = Long.parseLong(callSetDbId);
+            stockSampleId = Integer.parseInt(callSetDbId);
         } catch (NumberFormatException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "CallSet not found for callSetDbId: " + callSetDbId);
@@ -185,7 +185,7 @@ public class CallSetController {
             }
             if (callSetDbId != null && !callSetDbId.isBlank()) {
                 try {
-                    predicates.add(cb.equal(root.get("stockSampleId"), Long.parseLong(callSetDbId)));
+                    predicates.add(cb.equal(root.get("stockSampleId"), Integer.parseInt(callSetDbId)));
                 } catch (NumberFormatException ignored) {
                     predicates.add(cb.disjunction()); // no match
                 }

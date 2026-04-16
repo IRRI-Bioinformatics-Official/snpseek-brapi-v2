@@ -255,8 +255,8 @@ public class AlleleMatrixService {
             predicates.add(cb.equal(root.get("dataset"), datasetName));
 
             if (notEmpty(req.callSetDbIds())) {
-                List<Long> ids = req.callSetDbIds().stream()
-                        .map(Long::parseLong)
+                List<Integer> ids = req.callSetDbIds().stream()
+                        .map(Integer::parseInt)
                         .toList();
                 predicates.add(root.get("stockSampleId").in(ids));
             }

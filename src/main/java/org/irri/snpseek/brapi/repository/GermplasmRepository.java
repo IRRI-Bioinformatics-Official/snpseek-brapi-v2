@@ -10,6 +10,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
  * {@link org.irri.snpseek.brapi.service.GermplasmService}.
  */
 public interface GermplasmRepository
-        extends JpaRepository<Germplasm, Long>,
+        extends JpaRepository<Germplasm, Integer>,
                 JpaSpecificationExecutor<Germplasm> {
 }
