@@ -22,15 +22,19 @@ jobs:
       - name: Stop service
         run: |
           sudo systemctl stop snpseek-brapi || true
-          # Wait until port 8081 is released (up to 30s)
+          # Kill any stale process still holding port 8081 (e.g. from a restart loop)
+          sudo fuser -k 8081/tcp || true
+          # Wait until port 8081 is confirmed free (up to 30s)
           for i in $(seq 1 6); do
             if ! ss -tlnp | grep -q ':8081 '; then
               echo "Port 8081 is free."
-              break
+              exit 0
             fi
             echo "Waiting for port 8081 to be released..."
             sleep 5
           done
+          echo "Port 8081 still in use after 30s" >&2
+          exit 1
 
       - name: Build JAR
         run: mvn -B clean package -DskipTests
