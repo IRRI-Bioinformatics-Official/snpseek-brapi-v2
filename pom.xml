@@ -90,6 +90,24 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+
+            <!--
+                Exclude the copied SNPseekv3 / SNPSeek-Datasource legacy sources
+                (org.irri.iric.*) from compilation.  Those files use javax.persistence,
+                javax.xml.bind, javax.ws.rs, and org.skyway.spring.util.dao — none of
+                which are available in a Spring Boot 3.x / Jakarta EE 10 project.
+                The brapi-v2 application uses its own clean jakarta.persistence entities
+                (org.irri.snpseek.brapi.*) and does not depend on any of these classes.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>org/irri/iric/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
