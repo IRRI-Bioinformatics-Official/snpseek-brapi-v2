@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "Waiting for application to start..."
           for i in $(seq 1 12); do
-            if curl -sf http://localhost:8081/brapiv2/brapi/v2/serverinfo > /dev/null; then
+            if curl -sf http://localhost:8081/brapi/v2/serverinfo > /dev/null; then
               echo "Application is up."
               exit 0
             fi
