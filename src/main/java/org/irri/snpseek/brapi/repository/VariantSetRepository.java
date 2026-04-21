@@ -2,12 +2,15 @@ package org.irri.snpseek.brapi.repository;
 
 import org.irri.snpseek.brapi.domain.VariantSet;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
-public interface VariantSetRepository extends JpaRepository<VariantSet, Integer> {
+public interface VariantSetRepository
+        extends JpaRepository<VariantSet, Integer>,
+                JpaSpecificationExecutor<VariantSet> {
 
     /**
      * Load a VariantSet with its full run graph

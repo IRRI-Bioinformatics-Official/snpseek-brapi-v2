@@ -3,12 +3,12 @@ package org.irri.snpseek.brapi.service;
 import jakarta.persistence.criteria.Predicate;
 import org.irri.snpseek.brapi.domain.Germplasm;
 import org.irri.snpseek.brapi.domain.SnpMetadata;
-import org.irri.snpseek.brapi.domain.VariantSet;
 import org.irri.snpseek.brapi.dto.AlleleMatrixDto;
 import org.irri.snpseek.brapi.dto.AlleleMatrixDto.AlleleMatrixPagination;
 import org.irri.snpseek.brapi.dto.AlleleMatrixDto.DataMatrix;
 import org.irri.snpseek.brapi.dto.AlleleMatrixSearchRequest;
 import org.irri.snpseek.brapi.repository.GermplasmRepository;
+import org.irri.snpseek.brapi.repository.PlatformRepository;
 import org.irri.snpseek.brapi.repository.SnpMetadataRepository;
 import org.irri.snpseek.brapi.repository.VariantSetRepository;
 import org.slf4j.Logger;
@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Resolves BrAPI AlleleMatrix queries by combining metadata from PostgreSQL
@@ -51,15 +50,18 @@ public class AlleleMatrixService {
     private final SnpMetadataRepository  snpMetadataRepository;
     private final GermplasmRepository    germplasmRepository;
     private final VariantSetRepository   variantSetRepository;
+    private final PlatformRepository     platformRepository;
     private final GenotypeStorageService storageService;
 
     public AlleleMatrixService(SnpMetadataRepository snpMetadataRepository,
                                GermplasmRepository germplasmRepository,
                                VariantSetRepository variantSetRepository,
+                               PlatformRepository platformRepository,
                                GenotypeStorageService storageService) {
         this.snpMetadataRepository = snpMetadataRepository;
         this.germplasmRepository   = germplasmRepository;
         this.variantSetRepository  = variantSetRepository;
+        this.platformRepository    = platformRepository;
         this.storageService        = storageService;
     }
 
@@ -79,22 +81,29 @@ public class AlleleMatrixService {
         if (req.variantSetDbIds() == null || req.variantSetDbIds().isEmpty()) {
             return emptyMatrix(req, 0L, 0L);
         }
-        String variantSetDbIdStr = req.variantSetDbIds().get(0);
         Integer variantSetDbId;
         try {
-            variantSetDbId = Integer.parseInt(variantSetDbIdStr);
+            variantSetDbId = Integer.parseInt(req.variantSetDbIds().get(0));
         } catch (NumberFormatException e) {
             return emptyMatrix(req, 0L, 0L);
         }
 
-        Optional<VariantSet> vsOpt = variantSetRepository.findById(variantSetDbId);
-        if (vsOpt.isEmpty()) {
+        // SNP dimension: filter by variantset.name (v_snp_refposindex_v2.variantset = variantset.name)
+        String variantSetName = variantSetRepository.findById(variantSetDbId)
+                .map(vs -> vs.getName())
+                .orElse(null);
+        if (variantSetName == null) {
             return emptyMatrix(req, 0L, 0L);
         }
-        String datasetName = vsOpt.get().getName();
+
+        // CallSet dimension: filter by db.name (v_allstock_basicprop.dataset = db.name via platform)
+        List<String> datasetNames = platformRepository.findDatasetNamesByVariantSetId(variantSetDbId);
+        if (datasetNames.isEmpty()) {
+            return emptyMatrix(req, 0L, 0L);
+        }
 
         // 2. Resolve SNPs (variant dimension)
-        Specification<SnpMetadata> snpSpec  = buildSnpSpec(req, datasetName);
+        Specification<SnpMetadata> snpSpec  = buildSnpSpec(req, variantSetName);
         long snpTotal = snpMetadataRepository.count(snpSpec);
 
         Page<SnpMetadata> snpPage = snpMetadataRepository.findAll(
@@ -105,7 +114,7 @@ public class AlleleMatrixService {
                         Sort.by("alleleIndex")));
 
         // 3. Resolve CallSets (call set dimension)
-        Specification<Germplasm> callSetSpec = buildCallSetSpec(req, datasetName);
+        Specification<Germplasm> callSetSpec = buildCallSetSpec(req, datasetNames);
         long callSetTotal = germplasmRepository.count(callSetSpec);
 
         Page<Germplasm> callSetPage = germplasmRepository.findAll(
@@ -218,11 +227,11 @@ public class AlleleMatrixService {
     // Spec builders
     // -------------------------------------------------------------------------
 
-    private Specification<SnpMetadata> buildSnpSpec(AlleleMatrixSearchRequest req, String datasetName) {
+    private Specification<SnpMetadata> buildSnpSpec(AlleleMatrixSearchRequest req, String variantSetName) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            predicates.add(cb.equal(root.get("variantset"), datasetName));
+            predicates.add(cb.equal(root.get("variantset"), variantSetName));
 
             if (notEmpty(req.variantDbIds())) {
                 List<Integer> ids = req.variantDbIds().stream()
@@ -231,11 +240,12 @@ public class AlleleMatrixService {
                 predicates.add(root.get("snpFeatureId").in(ids));
             }
 
-            if (req.referenceName() != null && !req.referenceName().isBlank()) {
-                try {
-                    predicates.add(cb.equal(root.get("chromosome"), Integer.parseInt(req.referenceName())));
-                } catch (NumberFormatException ignored) { }
-            }
+            // Default chromosome to 1 when not provided (mirrors legacy GenotypeWS behaviour)
+            String chr = (req.referenceName() != null && !req.referenceName().isBlank())
+                    ? req.referenceName() : "1";
+            try {
+                predicates.add(cb.equal(root.get("chromosome"), Integer.parseInt(chr)));
+            } catch (NumberFormatException ignored) { }
 
             if (req.start() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("position"), req.start().intValue()));
@@ -248,11 +258,11 @@ public class AlleleMatrixService {
         };
     }
 
-    private Specification<Germplasm> buildCallSetSpec(AlleleMatrixSearchRequest req, String datasetName) {
+    private Specification<Germplasm> buildCallSetSpec(AlleleMatrixSearchRequest req, List<String> datasetNames) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            predicates.add(cb.equal(root.get("dataset"), datasetName));
+            predicates.add(root.get("dataset").in(datasetNames));
 
             if (notEmpty(req.callSetDbIds())) {
                 List<Integer> ids = req.callSetDbIds().stream()

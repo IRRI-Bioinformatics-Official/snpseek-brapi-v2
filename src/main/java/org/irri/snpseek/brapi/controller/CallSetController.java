@@ -13,7 +13,7 @@ import org.irri.snpseek.brapi.dto.BrapiListResponse;
 import org.irri.snpseek.brapi.dto.BrapiResponse;
 import org.irri.snpseek.brapi.dto.CallSetDto;
 import org.irri.snpseek.brapi.repository.GermplasmRepository;
-import org.irri.snpseek.brapi.repository.VariantSetRepository;
+import org.irri.snpseek.brapi.repository.PlatformRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -45,12 +45,12 @@ import java.util.List;
 public class CallSetController {
 
     private final GermplasmRepository  germplasmRepository;
-    private final VariantSetRepository variantSetRepository;
+    private final PlatformRepository   platformRepository;
 
     public CallSetController(GermplasmRepository germplasmRepository,
-                             VariantSetRepository variantSetRepository) {
-        this.germplasmRepository  = germplasmRepository;
-        this.variantSetRepository = variantSetRepository;
+                             PlatformRepository platformRepository) {
+        this.germplasmRepository = germplasmRepository;
+        this.platformRepository  = platformRepository;
     }
 
     // =========================================================================
@@ -67,7 +67,7 @@ public class CallSetController {
     })
     @GetMapping
     public BrapiListResponse<CallSetDto> listCallSets(
-            @Parameter(description = "Filter by variantSetDbId (resolves to dataset name)")
+            @Parameter(description = "Filter by variantSetDbId (resolves to dataset names via platform → db)")
             @RequestParam(required = false) String variantSetDbId,
             @Parameter(description = "Filter by germplasmDbId (numeric stockId)")
             @RequestParam(required = false) String germplasmDbId,
@@ -81,26 +81,30 @@ public class CallSetController {
         int effectivePage     = page     != null ? page     : 0;
         int effectivePageSize = pageSize != null ? pageSize : 1000;
 
-        // Resolve variantSetDbId → dataset name (used to filter by dataset column)
-        final String resolvedDataset = resolveDatasetName(variantSetDbId);
+        final List<String> resolvedDatasets = resolveDatasetNames(variantSetDbId);
 
-        Specification<Germplasm> spec = buildSpec(resolvedDataset, germplasmDbId, callSetDbId);
+        Specification<Germplasm> spec = buildSpec(resolvedDatasets, germplasmDbId, callSetDbId);
 
         Page<Germplasm> germplasmPage = germplasmRepository.findAll(
                 spec, PageRequest.of(effectivePage, effectivePageSize, Sort.by("stockSampleId")));
 
-        // Build variantSetIds to attach to each CallSet DTO
-        List<String> variantSetIds = resolvedDataset != null
-                ? buildVariantSetIdsForDataset(resolvedDataset)
-                : List.of();
+        // Pre-compute dataset → variantSetIds to avoid N+1 inside the stream
+        List<String> knownDatasets = !resolvedDatasets.isEmpty()
+                ? resolvedDatasets
+                : germplasmPage.getContent().stream()
+                        .map(Germplasm::getDataset)
+                        .filter(d -> d != null)
+                        .distinct()
+                        .toList();
+
+        java.util.Map<String, List<String>> datasetToVsIds = knownDatasets.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        name -> name,
+                        this::buildVariantSetIdsForDataset));
 
         List<CallSetDto> dtos = germplasmPage.getContent().stream()
-                .map(g -> {
-                    List<String> vsIds = !variantSetIds.isEmpty()
-                            ? variantSetIds
-                            : buildVariantSetIdsForDataset(g.getDataset());
-                    return CallSetDto.from(g, vsIds);
-                })
+                .map(g -> CallSetDto.from(g,
+                        datasetToVsIds.getOrDefault(g.getDataset(), List.of())))
                 .toList();
 
         return BrapiListResponse.of(dtos,
@@ -133,7 +137,7 @@ public class CallSetController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "CallSet not found for callSetDbId: " + callSetDbId);
         }
-        Germplasm g = germplasmRepository.findById(stockSampleId)
+        Germplasm g = germplasmRepository.findByStockSampleId(stockSampleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "CallSet not found for callSetDbId: " + callSetDbId));
 
@@ -145,49 +149,44 @@ public class CallSetController {
     // Helpers
     // =========================================================================
 
-    /** Resolve a variantSetDbId string to the corresponding {@code VariantSet.name}. */
-    private String resolveDatasetName(String variantSetDbId) {
-        if (variantSetDbId == null || variantSetDbId.isBlank()) return null;
+    /** Resolve variantSetDbId → dataset names via platform → db join. */
+    private List<String> resolveDatasetNames(String variantSetDbId) {
+        if (variantSetDbId == null || variantSetDbId.isBlank()) return List.of();
         try {
-            return variantSetRepository.findById(Integer.parseInt(variantSetDbId))
-                    .map(vs -> vs.getName())
-                    .orElse(null);
+            return platformRepository.findDatasetNamesByVariantSetId(Integer.parseInt(variantSetDbId));
         } catch (NumberFormatException e) {
-            return null;
+            return List.of();
         }
     }
 
-    /**
-     * Return the variantSetDbId strings for all VariantSets whose name matches
-     * the given dataset name.
-     */
+    /** Reverse lookup: dataset name → variantSetDbId strings via db → platform join. */
     private List<String> buildVariantSetIdsForDataset(String datasetName) {
         if (datasetName == null) return List.of();
-        return variantSetRepository.findAll().stream()
-                .filter(vs -> datasetName.equals(vs.getName()))
-                .map(vs -> String.valueOf(vs.getVariantSetId()))
+        return platformRepository.findVariantSetIdsByDatasetName(datasetName)
+                .stream()
+                .map(String::valueOf)
                 .toList();
     }
 
-    private Specification<Germplasm> buildSpec(String datasetName, String germplasmDbId, String callSetDbId) {
+    private Specification<Germplasm> buildSpec(List<String> datasetNames, String germplasmDbId, String callSetDbId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (datasetName != null) {
-                predicates.add(cb.equal(root.get("dataset"), datasetName));
+            if (!datasetNames.isEmpty()) {
+                predicates.add(root.get("dataset").in(datasetNames));
             }
             if (germplasmDbId != null && !germplasmDbId.isBlank()) {
                 try {
                     predicates.add(cb.equal(root.get("stockId"), Integer.parseInt(germplasmDbId)));
                 } catch (NumberFormatException ignored) {
-                    predicates.add(cb.disjunction()); // no match
+                    predicates.add(cb.disjunction());
                 }
             }
             if (callSetDbId != null && !callSetDbId.isBlank()) {
                 try {
                     predicates.add(cb.equal(root.get("stockSampleId"), Integer.parseInt(callSetDbId)));
                 } catch (NumberFormatException ignored) {
-                    predicates.add(cb.disjunction()); // no match
+                    predicates.add(cb.disjunction());
                 }
             }
 

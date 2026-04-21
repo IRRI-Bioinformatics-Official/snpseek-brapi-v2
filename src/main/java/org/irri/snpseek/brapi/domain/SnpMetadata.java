@@ -47,6 +47,10 @@ public class SnpMetadata {
     @Column(name = "altcall")
     private String altcall;
 
+    /** Chado feature type (FK → cvterm.cvterm_id). Used to distinguish SNP from indel. */
+    @Column(name = "type_id")
+    private Integer typeId;
+
     /**
      * 0-based row index into the HDF5 genotype matrix for this SNP position.
      * Used by {@link org.irri.snpseek.brapi.service.AlleleMatrixService} to
@@ -65,5 +69,6 @@ public class SnpMetadata {
     public String  getVariantset()   { return variantset; }
     public String  getRefcall()      { return refcall; }
     public String  getAltcall()      { return altcall; }
+    public Integer getTypeId()       { return typeId; }
     public Integer getAlleleIndex()   { return alleleIndex; }
 }

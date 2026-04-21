@@ -30,11 +30,13 @@ public record VariantSetDto(
 ) {
 
     public static VariantSetDto from(VariantSet vs, Long variantCount, Long callSetCount, String[] formats) {
+        // organism_id maps to referenceSetDbId (organism = genome assembly in this schema)
+        String refSetDbId = vs.getOrganismId() != null ? String.valueOf(vs.getOrganismId()) : null;
         return new VariantSetDto(
                 String.valueOf(vs.getVariantSetId()),
                 vs.getName(),
                 vs.getDescription(),
-                null,
+                refSetDbId,
                 formats != null ? Arrays.asList(formats) : List.of(),
                 variantCount,
                 callSetCount
